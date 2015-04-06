@@ -1,0 +1,71 @@
+#!/usr/bin/env ruby
+$:.unshift(File.expand_path('../../lib', __FILE__))
+
+require 'panda_corps'
+
+class ExampleWorker < PandaCorps::FifthFloor
+  def job_description
+    work { info "hello, world" }
+    delegate_to InputWorker
+    delegate_to AdderWorker
+    work { info "Result: #{consume(:result)}" }
+  end
+end
+
+class InputWorker < PandaCorps::FifthFloor
+  def manifest
+    i_produce :data1, :data2
+  end
+
+  def job_description
+    work do
+      info "type a number"
+      produce(:data1, gets)
+      raise "bad juju"
+      info "type another number"
+      produce(:data2, gets)
+    end
+  end
+end
+
+class AdderWorker < PandaCorps::FifthFloor
+  def manifest
+    i_consume :data1, :data2
+    i_produce :result
+  end
+
+  def job_description
+    work do
+      produce(:result, Integer(consume(:data1)) + Integer(consume(:data2)))
+    end
+  end
+end
+
+class PrinterManager < PandaCorps::SeventhFloor
+  def on_info message, worker
+    puts "#{worker.class.name} said, \"#{message}.\""
+  end
+
+  def on_fatal message, worker
+    puts "FATAL: #{message} for #{worker.class.name}"
+  end
+end
+
+class StatsManager < PandaCorps::SeventhFloor
+  def initialize
+    @stats = {}
+  end
+
+  def on_worker_start worker
+    @stats[worker.class.name] = Time.now
+  end
+
+  def on_worker_end worker
+    puts "#{(Time.now - @stats[worker.class.name])} for #{worker.class.name}"
+  end
+end
+
+manager = PandaCorps::Executive.new
+manager.add_assistant(PrinterManager.new)
+manager.add_assistant(StatsManager.new)
+manager.manage(ExampleWorker.new)
