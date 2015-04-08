@@ -10,62 +10,144 @@ class ExampleWorker < PandaCorps::FifthFloor
     delegate_to AdderWorker
     work { info "Result: #{consume(:result)}" }
   end
+
+  def on_start
+    puts "HEY I STARTED"
+  end
+
+  def on_finish
+    puts "HEY I FINISHED"
+  end
+
+  def on_exception fourth_floor, worker
+    puts "#{worker.name} did a bad"
+    fourth_floor.suppress!
+  end
+
+  def on_accomplished
+    puts "YAY I DID GOOD"
+  end
 end
 
 class InputWorker < PandaCorps::FifthFloor
   def manifest
-    i_produce :data1, :data2
+    i_produce :data1, Integer
+    i_produce :data2, Integer
+  end
+
+  def on_exception fourth_floor, worker
+    puts "i did a bad"
   end
 
   def job_description
     work do
-      info "type a number"
-      produce(:data1, gets)
-      raise "bad juju"
-      info "type another number"
-      produce(:data2, gets)
+      int1 = nil
+      int2 = nil
+      begin
+        info "type a number"
+        int1 = Integer(gets)
+        info "type another number"
+        int2 = Integer(gets)
+      rescue => e
+      end
+
+      produce(:data1, int1)
+      produce(:data2, int2)
     end
   end
 end
 
 class AdderWorker < PandaCorps::FifthFloor
   def manifest
-    i_consume :data1, :data2
+    i_consume :data1, Integer
+    i_consume :data2, Integer
     i_produce :result
   end
 
   def job_description
     work do
-      produce(:result, Integer(consume(:data1)) + Integer(consume(:data2)))
+      produce(:result, consume(:data1) + consume(:data2))
     end
   end
 end
 
 class PrinterManager < PandaCorps::SeventhFloor
   def on_info message, worker
-    puts "#{worker.class.name} said, \"#{message}.\""
+    puts "#{worker.name} said, \"#{message}.\""
   end
 
-  def on_fatal message, worker
-    puts "FATAL: #{message} for #{worker.class.name}"
+  def on_worker_start worker
+    puts "HEY #{worker.title} STARTED"
+  end
+
+  def on_worker_finish worker
+    puts "HEY #{worker.title} FINISHED"
+  end
+end
+
+class Hello < PandaCorps::SeventhFloor
+  def on_exception support, worker
+    puts "#{support.exception.inspect}"
+  end
+end
+
+class SixthFloor < PandaCorps::SeventhFloor
+  def on_exception support, worker
+    puts "here on sixth #{support.exception.inspect}"
+  end
+
+  def on_manage_start worker
+    puts "nom nom nom"
+  end
+
+  def on_manage_finish worker
+    puts "towerfallin"
   end
 end
 
 class StatsManager < PandaCorps::SeventhFloor
   def initialize
     @stats = {}
+    @overall_start_time
+    @should_i_report = true
+  end
+
+  def on_manage_start worker
+    puts "STARTING STATS TRACKING"
+    @overall_start_time = Time.now
+  end
+
+  def on_manage_finish worker
+    if @should_i_report
+      puts "#{Time.now - @overall_start_time} was total run time"
+    else
+      puts "well, it was a bad job, so forget reporting :P"
+    end
   end
 
   def on_worker_start worker
-    @stats[worker.class.name] = Time.now
+    @stats[worker.title] = Time.now
   end
 
-  def on_worker_end worker
-    puts "#{(Time.now - @stats[worker.class.name])} for #{worker.class.name}"
+  def on_worker_accomplished worker
+    puts "YAY #{worker.name} IS ACCOMPLISHED"
   end
+
+  def on_worker_finish worker
+    puts "#{(Time.now - @stats[worker.title])} for #{worker.title}"
+  end
+
+  def on_bad_job error, worker
+    @should_i_report = false
+    puts "#{worker.title}, MEH!"
+  end
+
 end
 
 manager = PandaCorps::Executive.new
 manager.add_assistant(PrinterManager.new)
 manager.add_assistant(StatsManager.new)
+fourth = Hello.new
+manager.add_assistant(fourth)
+
 manager.manage(ExampleWorker.new)

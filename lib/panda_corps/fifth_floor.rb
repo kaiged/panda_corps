@@ -1,14 +1,14 @@
 module PandaCorps
   class FifthFloor
-    attr_accessor :manager
+    attr_accessor :manager, :parent
 
     #declarative
     def work(&block)
-      @commitments << Commitment.new(:work, block)
+      @commitments << Commitment.new(:work, block, self)
     end
 
-    def delegate_to(worker)
-      @commitments << Commitment.new(:delegate, worker)
+    def delegate_to(work_unit)
+      @commitments << Commitment.new(:delegate, work_unit, self)
     end
 
     def commitments
@@ -17,12 +17,12 @@ module PandaCorps
       @commitments
     end
 
-    def i_consume(*consumables)
-      @consumables += consumables
+    def i_consume(consumable, validation = nil)
+      @consumables << Requirement.new(consumable, validation)
     end
 
-    def i_produce(*productions)
-      @productions += productions
+    def i_produce(production, validation = nil)
+      @productions << Requirement.new(production, validation)
     end
 
     def call_manifest
@@ -50,17 +50,46 @@ module PandaCorps
       products[product] = value
     end
 
-    %w(debug info warning error fatal).each do |method_name|
+    %w(debug info warning error).each do |method_name|
+      handle_method_name = "handle_#{method_name}"
       define_method(method_name) do |message|
-        manager.public_send("handle_#{method_name}", message, self)
+        manager.public_send(handle_method_name, message, self)
+        public_send(handle_method_name, message, self)
+      end
+
+      define_method(handle_method_name) do |message, worker|
+        on_method_name = "on_#{method_name}"
+        public_send(on_method_name, message, worker) if respond_to?(on_method_name)
+        parent.public_send(handle_method_name, message, worker) unless parent.nil?
       end
     end
 
-    def handle_unhandled_exception(args)
-      public_send(:on_unhandled_exception, args) if respond_to?(:on_unhandled_exception)
+    %w(start finish accomplished).each do |method_name|
+      handle_method_name = "handle_#{method_name}"
+      define_method(handle_method_name) do
+        on_method_name = "on_#{method_name}"
+        public_send(on_method_name) if respond_to?(on_method_name)
+      end
     end
 
-  private
+    def handle_exception(support, worker)
+      on_exception(support, worker) if respond_to?(:on_exception)
+      parent.handle_exception(support, worker) unless parent.nil?
+    end
+
+    def name
+      self.class.name
+    end
+
+    def title(delimeter = '::')
+      current_parent = parent
+      names = [name]
+      until current_parent.nil? do
+        names << current_parent.name
+        current_parent = current_parent.parent
+      end
+      names.reverse.join(delimeter)
+    end
 
     def products
       @products ||= {}
