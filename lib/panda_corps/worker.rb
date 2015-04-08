@@ -25,12 +25,6 @@ module PandaCorps
       @productions << Requirement.new(production, validation)
     end
 
-    def call_manifest
-      @consumables = []
-      @productions = []
-      public_send(:manifest) if respond_to?(:manifest)
-    end
-
     def consumables
       call_manifest
       @consumables
@@ -93,6 +87,14 @@ module PandaCorps
 
     def products
       @products ||= {}
+    end
+
+    private
+
+    def call_manifest
+      @consumables = []
+      @productions = []
+      public_send(:manifest) if respond_to?(:manifest)
     end
   end
 end
