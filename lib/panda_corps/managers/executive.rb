@@ -1,5 +1,5 @@
 module PandaCorps
-  class Executive < SeventhFloor
+  class Executive < Manager
     def on_work_commitment(commitment)
       commitment.work_unit.call
     end
@@ -29,9 +29,9 @@ module PandaCorps
 
     def move_requirement(requirement, from, to, worker_instance)
       notify_bad_job(RequirementError.no_key(requirement, from, to), worker_instance) unless from.products.has_key?(requirement.name)
-      item = from.consume(requirement.name)
+      item = from.products[requirement.name]
       notify_bad_job(RequirementError.bad_requirement(requirement, from, to, item), worker_instance) unless requirement.validates?(item)
-      to.produce requirement.name, item
+      to.products[requirement.name] = item
     end
 
     def notify_bad_job(error, worker)

@@ -1,20 +1,20 @@
 module PandaCorps
-  class FifthFloor
+  class Worker
     attr_accessor :manager, :parent
 
     #declarative
     def work(&block)
-      @commitments << Commitment.new(:work, block, self)
+      staged_commitments << Commitment.new(:work, block, self)
     end
 
     def delegate_to(work_unit)
-      @commitments << Commitment.new(:delegate, work_unit, self)
+      staged_commitments << Commitment.new(:delegate, work_unit, self)
     end
 
     def commitments
-      @commitments = []
+      @staged_commitments = []
       job_description
-      @commitments
+      staged_commitments
     end
 
     def i_consume(consumable, validation = nil)
@@ -36,14 +36,6 @@ module PandaCorps
     end
 
     #run-time
-    def consume(product)
-      products[product]
-    end
-
-    def produce(product, value)
-      products[product] = value
-    end
-
     %w(debug info warning error).each do |method_name|
       handle_method_name = "handle_#{method_name}"
       define_method(method_name) do |message|
@@ -89,12 +81,67 @@ module PandaCorps
       @products ||= {}
     end
 
+    def method_missing(method_name, *arguments, &block)
+      puts method_name
+      puts product_setters[method_name]
+      if product_getters.include?(method_name) && arguments.count == 0 && !block_given?
+        return consume(method_name)
+      end
+
+      if product_setters.keys.include?(method_name) && arguments.count == 1 && !block_given?
+        return produce(product_setters[method_name], arguments.first)
+      end
+
+      super
+    end
+
+    def public_methods(regular = true)
+      super(regular) + product_getters + product_setters.keys
+    end
+
+    def methods(regular = true)
+      super(regular) + product_getters + product_setters.keys
+    end
+
+    EXPLICIT_METHOD_CHECKS = [:manifest]
+    def respond_to?(method_name, include_private = false)
+      return super(method_name) if EXPLICIT_METHOD_CHECKS.include?(method_name)
+      return true if super(method_name, include_private)
+
+      return true if product_getters.include? method_name
+      return true if product_setters.keys.include? method_name
+      return false
+    end
+
+    def product_getters
+      @product_getters ||= productions.map { |p| p.name.to_sym } + consumables.map { |c| c.name.to_sym }
+    end
+
+    def product_setters
+      return @product_setters unless @product_setters.nil?
+      @product_setters = {}
+      productions.each { |p| @product_setters["#{p.name}=".to_sym] = p.name }
+      @product_setters
+    end
+
     private
+
+    def consume(product)
+      products[product]
+    end
+
+    def produce(product, value)
+      products[product] = value
+    end
 
     def call_manifest
       @consumables = []
       @productions = []
       public_send(:manifest) if respond_to?(:manifest)
+    end
+
+    def staged_commitments
+      @staged_commitments ||= []
     end
   end
 end

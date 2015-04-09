@@ -3,7 +3,7 @@ $:.unshift(File.expand_path('../../lib', __FILE__))
 
 require 'panda_corps'
 
-class ExampleWorker < PandaCorps::FifthFloor
+class ExampleWorker < PandaCorps::Worker
   def job_description
     work { info "hello, world" }
     delegate_to InputWorker
@@ -29,7 +29,7 @@ class ExampleWorker < PandaCorps::FifthFloor
   end
 end
 
-class InputWorker < PandaCorps::FifthFloor
+class InputWorker < PandaCorps::Worker
   def manifest
     i_produce :data1, Integer
     i_produce :data2, Integer
@@ -57,7 +57,7 @@ class InputWorker < PandaCorps::FifthFloor
   end
 end
 
-class AdderWorker < PandaCorps::FifthFloor
+class AdderWorker < PandaCorps::Worker
   def manifest
     i_consume :data1, Integer
     i_consume :data2, Integer
@@ -66,12 +66,13 @@ class AdderWorker < PandaCorps::FifthFloor
 
   def job_description
     work do
-      produce(:result, consume(:data1) + consume(:data2))
+      # idc = 10
+      # self.idc = idc
     end
   end
 end
 
-class PrinterManager < PandaCorps::SeventhFloor
+class PrinterManager < PandaCorps::Manager
   def on_info message, worker
     puts "#{worker.name} said, \"#{message}.\""
   end
@@ -85,13 +86,13 @@ class PrinterManager < PandaCorps::SeventhFloor
   end
 end
 
-class Hello < PandaCorps::SeventhFloor
+class Hello < PandaCorps::Manager
   def on_exception support, worker
     puts "#{support.exception.inspect}"
   end
 end
 
-class SixthFloor < PandaCorps::SeventhFloor
+class SixthFloor < PandaCorps::Manager
   def on_exception support, worker
     puts "here on sixth #{support.exception.inspect}"
   end
@@ -105,7 +106,7 @@ class SixthFloor < PandaCorps::SeventhFloor
   end
 end
 
-class StatsManager < PandaCorps::SeventhFloor
+class StatsManager < PandaCorps::Manager
   def initialize
     @stats = {}
     @overall_start_time

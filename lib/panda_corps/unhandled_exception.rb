@@ -1,5 +1,5 @@
 module PandaCorps
-  class FourthFloor < StandardError
+  class UnhandledException < StandardError
     attr_reader :internal_exception
 
     def initialize(internal_exception)

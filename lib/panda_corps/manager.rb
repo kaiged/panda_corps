@@ -1,5 +1,5 @@
 module PandaCorps
-  class SeventhFloor
+  class Manager
     def add_assistant(assistant)
       assistants << assistant
     end
@@ -7,7 +7,7 @@ module PandaCorps
     def manage(worker)
       handle_manage_start worker
       manage_worker worker
-    rescue FourthFloor => support
+    rescue UnhandledException => support
       raise support.internal_exception unless support.suppress?
     ensure
       handle_manage_finish worker

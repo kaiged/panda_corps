@@ -6,9 +6,9 @@ require 'panda_corps/version'
 Gem::Specification.new do |gem|
   gem.authors = ["Ken Romney", "Jayce Higgins"]
   gem.email = ["kromney@instructure.com"]
-  gem.description = %q{Instructure Corporate BS comes to code!}
-  gem.summary = %q{Corps}
-  gem.homepage = 'asdf://coming soon'
+  gem.description = %q{Just do your work; we'll handle the rest.}
+  gem.summary = %q{PandaCorps}
+  gem.homepage = 'https://github.com/kaiged/panda_corps'
   gem.license = 'coming soon'
 
   gem.files = %w[panda_corps.gemspec]
