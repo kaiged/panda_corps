@@ -4,13 +4,10 @@ module PandaCorps
       commitment.work_unit.call
     end
 
-    def on_delegate_commitment(parent, commitment)
-      worker_instance = commitment.work_unit.new
-      worker_instance.parent = parent
-
+    def on_delegate_commitment(parent, worker_instance)
       move_requirements_to_worker(parent, worker_instance)
       manage_worker(worker_instance)
-      move_reqirements_to_parent(parent, worker_instance)
+      move_requirements_to_parent(parent, worker_instance)
     end
 
     private
@@ -21,7 +18,7 @@ module PandaCorps
       end
     end
 
-    def move_reqirements_to_parent(parent, worker_instance)
+    def move_requirements_to_parent(parent, worker_instance)
       worker_instance.productions.each do |production|
         move_requirement(production, worker_instance, parent, worker_instance)
       end

@@ -3,12 +3,12 @@ module PandaCorps
     attr_accessor :manager, :parent
 
     #declarative
-    def work(&block)
-      staged_commitments << Commitment.new(:work, block, self)
+    def work(name=nil, &block)
+      staged_commitments << Commitment.new(:work, block, self, name)
     end
 
     def delegate_to(work_unit)
-      staged_commitments << Commitment.new(:delegate, work_unit, self)
+      staged_commitments << Commitment.new(:delegate, work_unit, self, nil)
     end
 
     def commitments
@@ -67,7 +67,7 @@ module PandaCorps
       self.class.name
     end
 
-    def title(delimeter = '::')
+    def title(delimeter = '~>')
       current_parent = parent
       names = [name]
       until current_parent.nil? do
@@ -82,8 +82,6 @@ module PandaCorps
     end
 
     def method_missing(method_name, *arguments, &block)
-      puts method_name
-      puts product_setters[method_name]
       if product_getters.include?(method_name) && arguments.count == 0 && !block_given?
         return consume(method_name)
       end

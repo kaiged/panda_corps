@@ -1,13 +1,32 @@
 module PandaCorps
   class RequirementError < StandardError
     def self.no_key(requirement, from, to)
-      message = "#{to.name} required #{requirement.name} from #{from.name}, but it wasn't provided."
-      RequirementError.new(message)
+      build_error_with_message("not provided by #{from.title}", from, requirement, to)
     end
 
     def self.bad_requirement(requirement, from, to, item)
-      message = "#{to.name} required #{requirement.name} from #{from.name} as a #{requirement.validation}, but is a #{item.class.name}"
-      RequirementError.new(message)
+      build_error_with_message(item.class.name, from, requirement, to)
+    end
+
+    private
+    def self.build_error_with_message(error, from, requirement, to)
+      sum = summary(requirement, to)
+      desc = description(requirement, from, to)
+      expect = expectation(requirement)
+      err = "Received '#{requirement.name}' as: #{error}"
+      RequirementError.new("#{sum}\n\n #{desc}\n   #{expect}\n   #{err}\n\n")
+    end
+
+    def self.description(requirement, from, to)
+      "While giving '#{requirement.name}' to #{to.title} from #{from.title}:"
+    end
+
+    def self.expectation(requirement)
+      "Expected '#{requirement.name}' as: #{requirement.validation}"
+    end
+
+    def self.summary(requirement, to)
+      "Error applying '#{requirement.name}' to #{to.title}."
     end
   end
 end
