@@ -13,13 +13,13 @@ module PandaCorps
     private
 
     def move_requirements_to_worker(parent, worker_instance)
-      worker_instance.consumables.each do |consumable|
+      worker_instance.manifest.consumables.each do |consumable|
         move_requirement(consumable, parent, worker_instance, worker_instance)
       end
     end
 
     def move_requirements_to_parent(parent, worker_instance)
-      worker_instance.productions.each do |production|
+      worker_instance.manifest.productions.each do |production|
         move_requirement(production, worker_instance, parent, worker_instance)
       end
     end

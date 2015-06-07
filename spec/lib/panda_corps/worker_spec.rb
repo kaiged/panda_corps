@@ -2,8 +2,21 @@ require 'spec_helper'
 
 module PandaCorps
   describe Worker do
-    describe '#work' do
+    class TestWorker < Worker
+      def manifest
+        i_consume :x
+        i_consume :y
 
+        i_produce :z
+      end
+    end
+
+    describe '#work' do
+      it 'does some test thin' do
+        w = TestWorker.new
+        w.product_getters
+        puts w.public_methods(false)
+      end
     end
 
     describe '#delegate_to' do

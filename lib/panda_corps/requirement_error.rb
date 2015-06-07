@@ -22,7 +22,8 @@ module PandaCorps
     end
 
     def self.expectation(requirement)
-      "Expected '#{requirement.name}' as: #{requirement.validation}"
+      as = requirement.validation.nil? ? "anything" : requirement.validation
+      "Expected '#{requirement.name}' as: #{as}"
     end
 
     def self.summary(requirement, to)

@@ -4,76 +4,53 @@ $:.unshift(File.expand_path('../../lib', __FILE__))
 require 'panda_corps'
 
 class ExampleWorker < PandaCorps::Worker
-  def job_description
+  def initialize
+    consume :result
+
+    before { puts "HEY I STARTED" }
     work { info "hello, world" }
-    delegate_to InputWorker
-    delegate_to AdderWorker
-    work { info "Result: #{consume(:result)}" }
-  end
-
-  def on_start
-    puts "HEY I STARTED"
-  end
-
-  def on_finish
-    puts "HEY I FINISHED"
-  end
-
-  def on_exception fourth_floor, worker
-    puts "#{worker.name} did a bad"
-    fourth_floor.suppress!
-  end
-
-  def on_accomplished
-    puts "YAY I DID GOOD"
+    work InputWorker
+    work AdderWorker
+    work { info "Result: #{self.result}" }
+    after { puts "HEY I FINISHED" }
   end
 end
 
 class InputWorker < PandaCorps::Worker
-  def manifest
-    i_produce :data1, Integer
-    i_produce :data2, Integer
-  end
 
-  def on_exception fourth_floor, worker
-    puts "i did a bad"
-  end
+  def initialize
+    produce :data1
+    produce :data2, String
 
-  def job_description
     work do
       int1 = nil
       int2 = nil
-      begin
-        info "type a number"
-        int1 = Integer(gets)
-        info "type another number"
-        int2 = Integer(gets)
-      rescue => e
-      end
-
-      produce(:data1, int1)
-      produce(:data2, int2)
+      info "type a number"
+      debug "whatever"
+      error "bad thing"
+      int1 = Integer(gets)
+      info "type another number"
+      int2 = Integer(gets)
+      self.data1 = int1
+      self.data2 = int2
     end
   end
 end
 
 class AdderWorker < PandaCorps::Worker
-  def manifest
-    i_consume :data1, Integer
-    i_consume :data2, Integer
-    i_produce :result
-  end
+  def initialize
+    consume :data1, Integer
+    consume :data2, Integer
+    produce :result
 
-  def job_description
     work do
-      # idc = 10
-      # self.idc = idc
+      self.result = data1 + data2
     end
   end
 end
 
 class PrinterManager < PandaCorps::Manager
-  def on_info message, worker
+  def on_info message, opts, worker
     puts "#{worker.name} said, \"#{message}.\""
   end
 
@@ -84,25 +61,13 @@ class PrinterManager < PandaCorps::Manager
   def on_worker_finish worker
     puts "HEY #{worker.title} FINISHED"
   end
-end
 
-class Hello < PandaCorps::Manager
-  def on_exception support, worker
-    puts "#{support.exception.inspect}"
-  end
-end
-
-class SixthFloor < PandaCorps::Manager
-  def on_exception support, worker
-    puts "here on sixth #{support.exception.inspect}"
+  def on_work_start work, worker
+    puts "#{worker.name} is working on #{work}"
   end
 
-  def on_manage_start worker
-    puts "nom nom nom"
-  end
-
-  def on_manage_finish worker
-    puts "towerfallin"
+  def on_work_finish work, worker
+    puts "#{worker.name} is done with #{work}"
   end
 end
 
@@ -148,7 +113,5 @@ end
 manager = PandaCorps::Executive.new
 manager.add_assistant(PrinterManager.new)
 manager.add_assistant(StatsManager.new)
-fourth = Hello.new
-manager.add_assistant(fourth)
 
 manager.manage(ExampleWorker.new)

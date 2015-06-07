@@ -2,51 +2,45 @@ module PandaCorps
   class Worker
     attr_accessor :manager, :parent
 
-    #declarative
-    def work(name=nil, &block)
-      staged_commitments << Commitment.new(:work, block, self, name)
+    def manifest
+      @manifest ||= Manifest.new
     end
 
-    def delegate_to(work_unit)
-      staged_commitments << Commitment.new(:delegate, work_unit, self, nil)
+    def job_description
+      @job_description ||= JobDescription.new(self)
     end
 
-    def commitments
-      @staged_commitments = []
-      job_description
-      staged_commitments
+    def work(opt=nil, &block)
+      job_description.work(opt, &block)
     end
 
-    def i_consume(consumable, validation = nil)
-      @consumables << Requirement.new(consumable, validation)
+    def before(opt=nil, &block)
+      job_description.before(opt, &block)
     end
 
-    def i_produce(production, validation = nil)
-      @productions << Requirement.new(production, validation)
+    def after(opt=nil, &block)
+      job_description.after(opt, &block)
     end
 
-    def consumables
-      call_manifest
-      @consumables
+    def consume(consumable, validation = nil)
+      manifest.add_consumable consumable, validation
     end
 
-    def productions
-      call_manifest
-      @productions
+    def produce(production, validation = nil)
+      manifest.add_production production, validation
     end
 
-    #run-time
     %w(debug info warning error).each do |method_name|
       handle_method_name = "handle_#{method_name}"
-      define_method(method_name) do |message|
-        manager.public_send(handle_method_name, message, self)
-        public_send(handle_method_name, message, self)
+      define_method(method_name) do |message, opts = {}|
+        manager.public_send(handle_method_name, message, opts, self)
+        public_send(handle_method_name, message, opts, self)
       end
 
-      define_method(handle_method_name) do |message, worker|
+      define_method(handle_method_name) do |message, opts, worker|
         on_method_name = "on_#{method_name}"
-        public_send(on_method_name, message, worker) if respond_to?(on_method_name)
-        parent.public_send(handle_method_name, message, worker) unless parent.nil?
+        public_send(on_method_name, message, opts, worker) if respond_to?(on_method_name)
+        parent.public_send(handle_method_name, message, opts, worker) unless parent.nil?
       end
     end
 
@@ -56,11 +50,6 @@ module PandaCorps
         on_method_name = "on_#{method_name}"
         public_send(on_method_name) if respond_to?(on_method_name)
       end
-    end
-
-    def handle_exception(support, worker)
-      on_exception(support, worker) if respond_to?(:on_exception)
-      parent.handle_exception(support, worker) unless parent.nil?
     end
 
     def name
@@ -77,17 +66,13 @@ module PandaCorps
       names.reverse.join(delimeter)
     end
 
-    def products
-      @products ||= {}
-    end
-
     def method_missing(method_name, *arguments, &block)
       if product_getters.include?(method_name) && arguments.count == 0 && !block_given?
-        return consume(method_name)
+        return self.products[method_name]
       end
 
-      if product_setters.keys.include?(method_name) && arguments.count == 1 && !block_given?
-        return produce(product_setters[method_name], arguments.first)
+      if self.product_setters.keys.include?(method_name) && arguments.count == 1 && !block_given?
+        return products[self.product_setters[method_name]] = arguments.first
       end
 
       super
@@ -106,40 +91,23 @@ module PandaCorps
       return super(method_name) if EXPLICIT_METHOD_CHECKS.include?(method_name)
       return true if super(method_name, include_private)
 
-      return true if product_getters.include? method_name
-      return true if product_setters.keys.include? method_name
+      return true if self.product_getters.include? method_name
+      return true if self.product_setters.keys.include? method_name
       return false
     end
 
     def product_getters
-      @product_getters ||= productions.map { |p| p.name.to_sym } + consumables.map { |c| c.name.to_sym }
+      @product_getters ||= manifest.productions.map { |p| p.name.to_sym } + manifest.consumables.map { |c| c.name.to_sym }
     end
 
     def product_setters
-      return @product_setters unless @product_setters.nil?
-      @product_setters = {}
-      productions.each { |p| @product_setters["#{p.name}=".to_sym] = p.name }
-      @product_setters
+      @product_setters ||= manifest.productions.each_with_object({}) { |p, h| h["#{p.name}=".to_sym] = p.name }
+    end
+
+    def products
+      @products ||= {}
     end
 
     private
-
-    def consume(product)
-      products[product]
-    end
-
-    def produce(product, value)
-      products[product] = value
-    end
-
-    def call_manifest
-      @consumables = []
-      @productions = []
-      public_send(:manifest) if respond_to?(:manifest)
-    end
-
-    def staged_commitments
-      @staged_commitments ||= []
-    end
   end
 end
