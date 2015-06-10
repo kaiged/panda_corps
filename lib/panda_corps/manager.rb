@@ -11,11 +11,11 @@ module PandaCorps
 
       hire_worker(worker)
       manage_worker(worker)
+      fire_worker(worker)
 
     rescue UnhandledException => support
       raise support.internal_exception unless support.suppress?
     ensure
-      fire_worker(worker)
       worker.manager = original_manager
       handle_manage_finish worker
     end
@@ -47,7 +47,7 @@ module PandaCorps
       end
     end
 
-    %w(exception bad_job named_work_start named_work_finish delegate_commitment).each do |method_name|
+    %w(exception named_work_start named_work_finish delegate_commitment).each do |method_name|
       handle_method_name = "handle_#{method_name}"
       define_method(handle_method_name) do |arg1, arg2|
         on_method_name = "on_#{method_name}"
@@ -69,6 +69,8 @@ module PandaCorps
 
     def run_commitments(commitments, worker)
       commitments.each do |commitment|
+        next if commitment.run?
+        commitment.mark_run
         run_work_commitment(commitment) if commitment.type == :work
         run_delegate_commitment(commitment, worker) if commitment.type == :delegate
       end
@@ -96,7 +98,7 @@ module PandaCorps
     def fire_the_whole_team(worker)
       current_team_member = worker
       until current_team_member.nil?
-        fire_worker(worker)
+        fire_worker(current_team_member)
         current_team_member = current_team_member.parent
       end
     end

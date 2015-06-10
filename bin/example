@@ -3,37 +3,50 @@ $:.unshift(File.expand_path('../../lib', __FILE__))
 
 require 'panda_corps'
 
-class ExampleWorker < PandaCorps::Worker
-  def initialize
-    consume :result
 
-    before { puts "HEY I STARTED" }
-    work { info "hello, world" }
-    work InputWorker
-    work AdderWorker
-    work { info "Result: #{self.result}" }
-    after { puts "HEY I FINISHED" }
+class ExampleWorker
+  include PandaCorps::Worker
+
+  produce :status
+  consume :result
+
+  before { info "HEY I STARTED"; self.status = "FAILED" }
+
+  work { info "hello, world" }
+  work InputWorker
+  work AdderWorker
+  work :instance_method
+  work { info "Result: #{self.result}" }
+
+  work { self.status = "SUCCEEDED" }
+  after Reporter
+end
+
+class Reporter < PandaCorps::Worker
+  def initialize
+    consume :status, String
+    work { info "Hey, I #{status}" }
   end
 end
 
 class InputWorker < PandaCorps::Worker
+  produce :data1, Integer
+  produce :data2, Integer
 
-  def initialize
-    produce :data1
-    produce :data2, String
+  produce :data1, :data2
+  produce data1: Integer, data2: Integer
 
-    work do
-      int1 = nil
-      int2 = nil
-      info "type a number"
-      debug "whatever"
-      error "bad thing"
-      int1 = Integer(gets)
-      info "type another number"
-      int2 = Integer(gets)
-      self.data1 = int1
-      self.data2 = int2
-    end
+  work do
+    int1 = nil
+    int2 = nil
+    info "type a number"
+    debug "whatever"
+    error "bad thing"
+    int1 = Integer(gets)
+    info "type another number"
+    int2 = Integer(gets)
+    self.data1 = int1
+    self.data2 = int2
   end
 end
 
@@ -95,15 +108,11 @@ class StatsManager < PandaCorps::Manager
     @stats[worker.title] = Time.now
   end
 
-  def on_worker_accomplished worker
-    puts "YAY #{worker.name} IS ACCOMPLISHED"
-  end
-
   def on_worker_finish worker
     puts "#{(Time.now - @stats[worker.title])} for #{worker.title}"
   end
 
-  def on_bad_job error, worker
+  def on_exception error, worker
     @should_i_report = false
     puts "#{worker.title}, MEH!"
   end
@@ -113,5 +122,4 @@ end
 manager = PandaCorps::Executive.new
 manager.add_assistant(PrinterManager.new)
 manager.add_assistant(StatsManager.new)
-
 manager.manage(ExampleWorker.new)

@@ -56,7 +56,7 @@ module PandaCorps
       self.class.name
     end
 
-    def title(delimeter = '~>')
+    def title(delimeter = "~>")
       current_parent = parent
       names = [name]
       until current_parent.nil? do
@@ -67,23 +67,23 @@ module PandaCorps
     end
 
     def method_missing(method_name, *arguments, &block)
-      if product_getters.include?(method_name) && arguments.count == 0 && !block_given?
+      if manifest.product_getters.include?(method_name) && arguments.count == 0 && !block_given?
         return self.products[method_name]
       end
 
-      if self.product_setters.keys.include?(method_name) && arguments.count == 1 && !block_given?
-        return products[self.product_setters[method_name]] = arguments.first
+      if manifest.product_setters.keys.include?(method_name) && arguments.count == 1 && !block_given?
+        return products[manifest.product_setters[method_name]] = arguments.first
       end
 
       super
     end
 
     def public_methods(regular = true)
-      super(regular) + product_getters + product_setters.keys
+      super(regular) + manifest.product_getters + manifest.product_setters.keys
     end
 
     def methods(regular = true)
-      super(regular) + product_getters + product_setters.keys
+      super(regular) + manifest.product_getters + manifest.product_setters.keys
     end
 
     EXPLICIT_METHOD_CHECKS = [:manifest]
@@ -91,17 +91,9 @@ module PandaCorps
       return super(method_name) if EXPLICIT_METHOD_CHECKS.include?(method_name)
       return true if super(method_name, include_private)
 
-      return true if self.product_getters.include? method_name
-      return true if self.product_setters.keys.include? method_name
+      return true if manifest.product_getters.include? method_name
+      return true if manifest.product_setters.keys.include? method_name
       return false
-    end
-
-    def product_getters
-      @product_getters ||= manifest.productions.map { |p| p.name.to_sym } + manifest.consumables.map { |c| c.name.to_sym }
-    end
-
-    def product_setters
-      @product_setters ||= manifest.productions.each_with_object({}) { |p, h| h["#{p.name}=".to_sym] = p.name }
     end
 
     def products

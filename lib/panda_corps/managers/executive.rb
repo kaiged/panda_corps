@@ -14,26 +14,29 @@ module PandaCorps
 
     def move_requirements_to_worker(parent, worker_instance)
       worker_instance.manifest.consumables.each do |consumable|
-        move_requirement(consumable, parent, worker_instance, worker_instance)
+        move_requirement(consumable, parent, worker_instance)
       end
     end
 
     def move_requirements_to_parent(parent, worker_instance)
       worker_instance.manifest.productions.each do |production|
-        move_requirement(production, worker_instance, parent, worker_instance)
+        if consumable = parent.manifest.consumables.find {|c| production.name == c.name }
+          validate_requirement(worker_instance, consumable, parent)
+        end
+        move_requirement(production, worker_instance, parent)
       end
     end
 
-    def move_requirement(requirement, from, to, worker_instance)
-      notify_bad_job(RequirementError.no_key(requirement, from, to), worker_instance) unless from.products.has_key?(requirement.name)
-      item = from.products[requirement.name]
-      notify_bad_job(RequirementError.bad_requirement(requirement, from, to, item), worker_instance) unless requirement.validates?(item)
-      to.products[requirement.name] = item
+    def move_requirement(requirement, from, to)
+      raise RequirementError.no_key(requirement, from, to) unless from.products.has_key?(requirement.name)
+      validate_requirement(from, requirement, to)
+      to.products[requirement.name] = from.products[requirement.name]
     end
 
-    def notify_bad_job(error, worker)
-      handle_bad_job(error, worker)
-      raise error
+    def validate_requirement(from, requirement, to)
+      item = from.products[requirement.name]
+      raise RequirementError.bad_requirement(requirement, from, to, item) unless requirement.validates?(item)
     end
+
   end
 end
